@@ -78,9 +78,11 @@ function App() {
           <div className='my-2 flex justify-between items-start'>
             <div className='flex gap-5'>
               <img className='w-[80px] h-[80px]' src='./assets/img/user-1.png' />
-              <div>
-                <div>IMG_0083.jpg</div>
-                <div>331kb</div>
+              <div className='flex flex-col justify-between'>
+                <div>
+                  <div className='font-semibold text-[#171717] text-[16px] leading-7'>IMG_0083.jpg</div>
+                  <div className='text-[#525252] text-[12px]'>331kb</div>
+                </div>
                 <div className='flex gap-2 justify-start items-center'>
                   <button className='text-[14px] text-[#525252] flex gap-4 leading-5 justify-center items-center'>
                     <img className='w-[13px] h-[13px]' src='./assets/img/crop.png' />
@@ -94,7 +96,7 @@ function App() {
               </div>
             </div>
             <div>
-              <input type='radio' />
+              <input className='accent-[#4338CA] w-[16px] h-[16px]' type='radio' />
             </div>
           </div>
         </div>
