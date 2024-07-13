@@ -30,7 +30,7 @@ function App() {
         </div>
         <div className=''>
           <div className='flex justify-end items-center'>
-            <button onClick={openUploadModal} className='shadow py-[7px] md:py-[10px] px-[7px] md:px-[20px] mt-[5px] md:mt-[15px] mr-[10px] md:mr-[15px] text-[#171717] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded'>Update picture</button>
+            <button onClick={openUploadModal} className='shadow py-[7px] md:py-[10px] px-[7px] md:px-[20px] mt-[5px] md:mt-[15px] mr-[10px] md:mr-[15px] text-[#171717] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded hover:border-1 hover:border-[#E5E5E5] hover:bg-[#FAFAFA] focus:border-1 focus:border-[#E5E5E5] focus:bg-[#E5E5E5] disabled:bg-[#F5F5F5] disabled:text-[#A3A3A3]'>Update picture</button>
           </div>
           <div className='pl-[25px] mt-[15px] md:mt-[30px]'>
             <h2 className='text-[#171717] mb-[18px] text-[20px] md:text-[30px] font-semibold leading-9'>Jack Smith</h2>
@@ -69,7 +69,7 @@ function App() {
           <label className="p-[10px] cursor-pointer rounded-md h-[192px] flex items-center justify-center border border-1 border-[#E5E5E5] bg-[#FAFAFA]" htmlFor="fileElem">
             <div className='flex flex-col justify-center items-center'>
               <img className='w-[48px] h-[48px] ' src='./assets/img/upload-icon.png' />
-              <div className="text-[18px] text-[#171717] leading-7">Click or drag and drop to upload</div>
+              <div className="text-[13px] md:text-[18px] lg:text-[14px] text-[#171717] leading-7">Click or drag and drop to upload</div>
               <div className="text-[#525252] text-[14px]">PNG, or JPG (Max 5MB)</div>
             </div>
           </label>
@@ -80,29 +80,29 @@ function App() {
               <img className='w-[80px] h-[80px]' src='./assets/img/user-1.png' />
               <div className='flex flex-col justify-between'>
                 <div>
-                  <div className='font-semibold text-[#171717] text-[16px] leading-7'>IMG_0083.jpg</div>
+                  <div className='font-semibold text-[#171717] text-[13px] md:text-[16px] leading-7'>IMG_0083.jpg</div>
                   <div className='text-[#525252] text-[12px]'>331kb</div>
                 </div>
-                <div className='flex gap-2 justify-start items-center'>
-                  <button className='text-[14px] text-[#525252] flex gap-4 leading-5 justify-center items-center'>
-                    <img className='w-[13px] h-[13px]' src='./assets/img/crop.png' />
+                <div className='flex gap-2 xl:gap-6 justify-start items-center'>
+                  <button className='text-[10px] md:text-[14px] text-[#525252] flex gap-1 md:gap-4 lg:gap-1 xl:gap-6 leading-5 justify-center items-center'>
+                    <img className='w-[8px] h-[8px] md:w-[13px] md:h-[13px]' src='./assets/img/crop.png' />
                     Crop Image
                   </button>
-                  <button className='text-[14px] text-[#525252] flex gap-4 justify-center items-center'>
-                    <img className='w-[13px] h-[13px]' src='./assets/img/delete.png' />
+                  <button className='text-[10px] md:text-[14px] text-[#525252] flex gap-1 md:gap-4 lg:gap-1 xl:gap-6 justify-center items-center'>
+                    <img className='w-[8px] h-[8px] md:w-[13px] md:h-[13px]' src='./assets/img/delete.png' />
                     Delete
                   </button>
                 </div>
               </div>
             </div>
             <div>
-              <input className='accent-[#4338CA] w-[16px] h-[16px]' type='radio' />
+              <input className='hover:border-[#4F46E5] accent-[#4338CA] w-[16px] h-[16px]' type='radio' />
             </div>
           </div>
         </div>
         <div className='flex mt-3 gap-5 items-center justify-between'>
           <button className='shadow w-full py-[10px] text-[#171717] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded'>Cancel</button>
-          <button className='shadow w-full py-[10px] text-white bg-[#4338CA] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded'>Select image</button>
+          <button className='shadow w-full py-[10px] text-white bg-[#4338CA] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] focus:bg-[#3730A3] disabled:text-[#A3A3A3] disabled:bg-[#F5F5F5] hover:bg-[#3730A3] rounded'>Select image</button>
         </div>
       </UploadModal>
     </div>
