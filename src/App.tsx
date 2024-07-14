@@ -47,6 +47,10 @@ function App() {
   const removeFile = (index : number) => {
     setFiles((preFile) => preFile.filter((_,i) => i !== index))
   }
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    setFiles(files);
+  };
   console.log("file", files)
   return (
     <div className="bg-custom-gradient flex justify-center  items-center w-full h-screen">
@@ -91,8 +95,8 @@ function App() {
           <input className='hidden'
             type="file"
             id="fileElem"
-            accept="image/*"
-            onChange={e => { }}
+            multiple
+            onChange={handleFileInputChange}
           />
           {files.length < 6 ? <label className="p-[10px] cursor-pointer rounded-md h-[192px] flex items-center justify-center border border-1 border-[#E5E5E5] bg-[#FAFAFA]" htmlFor="fileElem">
             <div className='flex flex-col justify-center items-center'>
