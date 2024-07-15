@@ -3,9 +3,20 @@ import './App.css';
 import Modal from './components/Modal';
 import UploadModal from './components/uploadModal';
 import ReactCrop, { Crop } from 'react-image-crop'
-import 'react-image-crop/dist/ReactCrop.css'
+import 'react-image-crop/dist/ReactCrop.css';
+import axios from 'axios';
+
+type UploadProgress = {
+  [key: string]: {
+    status: boolean,
+    error: string,
+    load: number
+  };
+};
+
 function App() {
   const [files, setFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
   const [isModalVisible, setModalVisible] = useState(false);
   const [isUploadModalVisible, setUploadModalVisible] = useState(false);
   const [crop, setCrop] = useState<Crop>({
@@ -21,14 +32,90 @@ function App() {
   const closeModal = () => setModalVisible(false);
   const openUploadModal = () => setUploadModalVisible(true);
   const closeUploadModal = () => setUploadModalVisible(false);
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
     setFiles(files)
+    const promises: Promise<any>[] = [];
+    const progress: UploadProgress = {};
+    Array.from(files).forEach((file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (file.type === 'image/jpeg' || file.type === 'image/png') {
+        if (file.size < 5 * 1024 * 1024) {
+          const promise = axios.post('http://localhost:3030/upload', formData, {
+            onUploadProgress: (event) => {
+              const total = event.total || event.loaded;
+              if (event.loaded === total) {
+                progress[file.name] = { status: true, load: Math.round((100 * event.loaded) / total), error: "" };
+              } else {
+                progress[file.name] = { status: true, load: Math.round((100 * event.loaded) / total), error: "" };
+              }
+              setUploadProgress({ ...progress });
+            },
+          }).catch(error => {
+
+            if (error.response) {
+              // The request was made and the server responded with a status code
+              if (error.response.status >= 400 && error.response.status < 500) {
+                progress[file.name] = {
+                  status: false,
+                  error: 'Client Error: ' + error.response.data.message,
+                  load: 0
+                };
+              } else if (error.response.status >= 500 && error.response.status < 600) {
+                progress[file.name] = {
+                  status: false,
+                  error: 'Server Error: ' + error.response.data.message,
+                  load: 0
+                };
+              } else {
+                progress[file.name] = {
+                  status: false,
+                  error: 'Unexpected Error: ' + error.response.data.message,
+                  load: 0
+                };
+              }
+            } else if (error.request) {
+              console.log("error", error)
+              // The request was made but no response was received
+              progress[file.name] = {
+                status: false,
+                error: 'An error occurred during the upload. Please check your network connection and try again.',
+                load: 0
+              };
+            } else {
+              // Something happened in setting up the request that triggered an error
+              progress[file.name] = {
+                status: false,
+                error: 'Error: ' + error.message,
+                load: 0
+              };
+            }
+            setUploadProgress({ ...progress });
+          });
+
+          promises.push(promise);
+        } else {
+          progress[file.name] = { status: false, error: "This image is larger than 5MB. Please select a smaller image.", load: 0 };
+          setUploadProgress({ ...progress });
+        }
+      } else {
+        progress[file.name] = {
+          status: false,
+          error: "The file format of IMG_0080.pcx is not supported. Please upload an image in one of the following formats: JPG or PNG.",
+          load: 0
+        };
+      }
+      console.log("progress", progress)
+
+
+    });
+    await Promise.all(promises);
   }
+  console.log("uploadProgress", uploadProgress)
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-
   }
   const displayFileSize = (file: File) => {
     const fileSize = file.size; // size in bytes
@@ -41,17 +128,37 @@ function App() {
     }
   }
   const displayImage = (file: File) => {
-    const fileUrl  = URL.createObjectURL(file)
+    let fileUrl ;
+    if (file.type === 'image/jpeg' || file.type === 'image/png') {
+      fileUrl = URL.createObjectURL(file)
+    }else{
+      fileUrl = "./assets/img/damage.png"
+    }
     return fileUrl
   }
-  const removeFile = (index : number) => {
-    setFiles((preFile) => preFile.filter((_,i) => i !== index))
+  const removeFile = (index: number) => {
+    setFiles((preFile) => preFile.filter((_, i) => i !== index))
   }
-  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     setFiles(files);
+    const promises: Promise<any>[] = [];
+    const progress: UploadProgress = {};
+    Array.from(files).forEach((file) => {
+      const formData = new FormData();
+      formData.append('file', file);
+      console.log("log", formData);
+      const promise = axios.post('http://localhost:6000/upload', formData, {
+        onUploadProgress: (event) => {
+          const total = event.total || event.loaded;
+          // progress[file.name] = Math.round((100 * event.loaded) / total);
+          // setUploadProgress({ ...progress });
+        },
+      });
+      promises.push(promise);
+    });
+    await Promise.all(promises);
   };
-  console.log("file", files)
   return (
     <div className="bg-custom-gradient flex justify-center  items-center w-full h-screen">
       <div className='bg-white relative rounded-lg border overflow-hidden border-1 w-[90%] md:w-[70%] h-[420px]  mx-[10px]  md:mx-[20px] lg:mx-[20%]'>
@@ -104,14 +211,36 @@ function App() {
               <div className="text-[13px] md:text-[18px] lg:text-[14px] text-[#171717] leading-7">Click or drag and drop to upload</div>
               <div className="text-[#525252] text-[14px]">PNG, or JPG (Max 5MB)</div>
             </div>
-          </label> : 
+          </label> :
             <div className='flex flex-col justify-center items-center'>
-            <div className="text-[13px] md:text-[18px] lg:text-[14px] text-[#DC2626] leading-7">You've reached the image limit</div>
-            <div className="text-[#525252] text-[14px]">Remove one or more to upload more images.</div>
-          </div>
+              <div className="text-[13px] md:text-[18px] lg:text-[14px] text-[#DC2626] leading-7">You've reached the image limit</div>
+              <div className="text-[#525252] text-[14px]">Remove one or more to upload more images.</div>
+            </div>
           }
         </div>
-        <div>
+        <div className='overflow-y-auto no-scrollbar h-[300px]' >
+          {files.length > 0 && files.map((file, index) => <div key={index} className='my-2 flex justify-between items-start'>
+            <div className='flex w-full gap-5'>
+              {uploadProgress[file.name]?.status ? <img alt='user-image' className='w-[80px] h-[80px] border border-1 boreder-[#E5E5E5] rounded-md bg-[#FAFAFA]' src={displayImage(file)} /> : <div className='flex items-center justify-center w-[80px] h-[80px] border border-1 boreder-[#E5E5E5] rounded-md bg-[#FAFAFA]'>
+              <img alt='user-image' className='w-[24px] h-[26px] ' src="./assets/img/damage.png" />  
+              </div> }
+              <div className='flex w-full flex-col justify-around'>
+                <div className='flex justify-between w-full'>
+                  <div className=''>
+                    <div className='font-semibold text-[#171717] text-[13px] md:text-[16px] leading-7'>{file?.name}</div>
+                    <div className='text-[#525252] text-[12px]'>{displayFileSize(file)}</div>
+                  </div>
+                  <div className='cursor-pointer' ><img onClick={() => removeFile(index)} className='w-[9px] h-[9px]' src='./assets/img/remove.png' /></div>
+                </div>
+                {uploadProgress[file.name]?.status ? <div className='flex gap-5 items-center'>
+                  {uploadProgress[file.name].load < 100 ? <div className="w-full bg-gray-200 rounded-full h-[6px] dark:bg-gray-700">
+                    <div className="bg-[#4338CA] h-[6px] rounded-full" style={{ width: `${uploadProgress[file.name]?.load}%` }}></div>
+                  </div> : <div className='flex items-center gap-5 text-[12px] font-medium text-[#15803D]'><img className='w-[12px] h-[9px]' src='./assets/img/tic.png' /> Upload success!</div>}
+                  {uploadProgress[file.name].load < 100 && <div className='text-[#525252] text-[12px] font-medium'>{uploadProgress[file.name]?.load}%</div>}
+                </div> : <div className='text-[#DC2626] text-[12px] font-medium'>{uploadProgress[file.name]?.error}</div>}
+              </div>
+            </div>
+          </div>)}
           {files.length > 0 && files.map((file, index) => <div key={index} className='my-2 flex justify-between items-start'>
             <div className='flex gap-5'>
               <img alt='user-image' className='w-[80px] h-[80px]' src={displayImage(file)} />
