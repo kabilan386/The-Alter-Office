@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './App.css';
 import Modal from './components/Modal';
 import UploadModal from './components/uploadModal';
@@ -14,8 +14,16 @@ type UploadProgress = {
   };
 };
 
+type FetchImages = {
+  _id : string,
+  url : string,
+  dbState : boolean,
+  size : string
+}
+
 function App() {
   const [files, setFiles] = useState<File[]>([]);
+  const [fetchFiles, setFetchFiles] = useState<FetchImages[]>([]);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
   const [isModalVisible, setModalVisible] = useState(false);
   const [isUploadModalVisible, setUploadModalVisible] = useState(false);
@@ -30,8 +38,25 @@ function App() {
   const imgRef = useRef<HTMLImageElement | null>(null);
   const openModal = () => setModalVisible(true);
   const closeModal = () => setModalVisible(false);
-  const openUploadModal = () => setUploadModalVisible(true);
+  const openUploadModal = () => {
+    FetchImages()
+    setUploadModalVisible(true)
+  };
   const closeUploadModal = () => setUploadModalVisible(false);
+
+  const FetchImages = async () => {
+    try {
+      const images =  await  axios.get(`${process.env.REACT_APP_BACKEND_URL}/get-image`);
+      setFetchFiles(images.data?.images);
+      setFiles([])
+    } catch (error) {
+      
+    }
+  }
+  useEffect(() => {
+    FetchImages()
+  },[])
+
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     const files = Array.from(e.dataTransfer.files);
@@ -43,7 +68,7 @@ function App() {
       formData.append('file', file);
       if (file.type === 'image/jpeg' || file.type === 'image/png') {
         if (file.size < 5 * 1024 * 1024) {
-          const promise = axios.post('http://localhost:3030/upload', formData, {
+          const promise = axios.post(`${process.env.REACT_APP_BACKEND_URL}/upload`, formData, {
             onUploadProgress: (event) => {
               const total = event.total || event.loaded;
               if (event.loaded === total) {
@@ -66,7 +91,7 @@ function App() {
               } else if (error.response.status >= 500 && error.response.status < 600) {
                 progress[file.name] = {
                   status: false,
-                  error: 'Server Error: ' + error.response.data.message,
+                  error: 'An unexpected error occurred during the upload. Please contact support if the issue persists.',
                   load: 0
                 };
               } else {
@@ -111,14 +136,25 @@ function App() {
 
 
     });
-    await Promise.all(promises);
+    await Promise.all(promises).then((res) => {
+      
+    });
   }
-  console.log("uploadProgress", uploadProgress)
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   }
   const displayFileSize = (file: File) => {
     const fileSize = file.size; // size in bytes
+    let sizeInKB = fileSize / 1024;
+    let sizeInMB = sizeInKB / 1024;
+    if (sizeInMB >= 1) {
+      return `${sizeInMB.toFixed(2)} MB`;
+    } else {
+      return `${sizeInKB.toFixed(2)} KB`;
+    }
+  }
+  const displayUploadedFileSize = (file: FetchImages) => {
+    const fileSize: number = Number(file.size); // size in bytes
     let sizeInKB = fileSize / 1024;
     let sizeInMB = sizeInKB / 1024;
     if (sizeInMB >= 1) {
@@ -139,25 +175,33 @@ function App() {
   const removeFile = (index: number) => {
     setFiles((preFile) => preFile.filter((_, i) => i !== index))
   }
+  const removeApiCall = async (id : string) => {
+    try {
+      axios.delete(`${process.env.REACT_APP_BACKEND_URL}/remove/${id}`).then((res) => {
+        FetchImages()
+      });
+    } catch (error) {
+      
+    }
+  }
   const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     setFiles(files);
     const promises: Promise<any>[] = [];
-    const progress: UploadProgress = {};
     Array.from(files).forEach((file) => {
       const formData = new FormData();
       formData.append('file', file);
       console.log("log", formData);
-      const promise = axios.post('http://localhost:6000/upload', formData, {
+      const promise = axios.post('https://the-alter-office-backend.onrender.com/upload', formData, {
         onUploadProgress: (event) => {
-          const total = event.total || event.loaded;
+          // const total = event.total || event.loaded;
           // progress[file.name] = Math.round((100 * event.loaded) / total);
           // setUploadProgress({ ...progress });
         },
       });
       promises.push(promise);
     });
-    await Promise.all(promises);
+    await Promise.all(promises)
   };
   return (
     <div className="bg-custom-gradient flex justify-center  items-center w-full h-screen">
@@ -205,15 +249,15 @@ function App() {
             multiple
             onChange={handleFileInputChange}
           />
-          {files.length < 6 ? <label className="p-[10px] cursor-pointer rounded-md h-[192px] flex items-center justify-center border border-1 border-[#E5E5E5] bg-[#FAFAFA]" htmlFor="fileElem">
+          {fetchFiles.length < 5 ? <label className="p-[10px] cursor-pointer rounded-md h-[192px] flex items-center justify-center border border-1 border-[#E5E5E5] bg-[#FAFAFA]" htmlFor="fileElem">
             <div className='flex flex-col justify-center items-center'>
               <img alt='upload-file' className='w-[48px] h-[48px] ' src='./assets/img/upload-icon.png' />
               <div className="text-[13px] md:text-[18px] lg:text-[14px] text-[#171717] leading-7">Click or drag and drop to upload</div>
               <div className="text-[#525252] text-[14px]">PNG, or JPG (Max 5MB)</div>
             </div>
           </label> :
-            <div className='flex flex-col justify-center items-center'>
-              <div className="text-[13px] md:text-[18px] lg:text-[14px] text-[#DC2626] leading-7">You've reached the image limit</div>
+            <div className='border border-1 border-[#E5E5E5] bg-[#FAFAFA] rounded py-2 flex flex-col justify-center items-center'>
+              <div className="text-[13px] md:text-[18px] lg:text-[16px] text-[#DC2626] leading-7 font-semibold">You've reached the image limit</div>
               <div className="text-[#525252] text-[14px]">Remove one or more to upload more images.</div>
             </div>
           }
@@ -230,31 +274,31 @@ function App() {
                     <div className='font-semibold text-[#171717] text-[13px] md:text-[16px] leading-7'>{file?.name}</div>
                     <div className='text-[#525252] text-[12px]'>{displayFileSize(file)}</div>
                   </div>
-                  <div className='cursor-pointer' ><img onClick={() => removeFile(index)} className='w-[9px] h-[9px]' src='./assets/img/remove.png' /></div>
+                  <div className='cursor-pointer' ><img alt='remove' onClick={() => removeFile(index)} className='w-[9px] h-[9px]' src='./assets/img/remove.png' /></div>
                 </div>
                 {uploadProgress[file.name]?.status ? <div className='flex gap-5 items-center'>
                   {uploadProgress[file.name].load < 100 ? <div className="w-full bg-gray-200 rounded-full h-[6px] dark:bg-gray-700">
                     <div className="bg-[#4338CA] h-[6px] rounded-full" style={{ width: `${uploadProgress[file.name]?.load}%` }}></div>
-                  </div> : <div className='flex items-center gap-5 text-[12px] font-medium text-[#15803D]'><img className='w-[12px] h-[9px]' src='./assets/img/tic.png' /> Upload success!</div>}
+                  </div> : <div className='flex items-center gap-5 text-[12px] font-medium text-[#15803D]'><img alt='tic' className='w-[12px] h-[9px]' src='./assets/img/tic.png' /> Upload success!</div>}
                   {uploadProgress[file.name].load < 100 && <div className='text-[#525252] text-[12px] font-medium'>{uploadProgress[file.name]?.load}%</div>}
                 </div> : <div className='text-[#DC2626] text-[12px] font-medium'>{uploadProgress[file.name]?.error}</div>}
               </div>
             </div>
           </div>)}
-          {files.length > 0 && files.map((file, index) => <div key={index} className='my-2 flex justify-between items-start'>
+          {fetchFiles.length > 0 && fetchFiles.map((file, index) => <div key={index} className='my-2 flex justify-between items-start'>
             <div className='flex gap-5'>
-              <img alt='user-image' className='w-[80px] h-[80px]' src={displayImage(file)} />
+              <img alt='user-image' className='w-[80px] h-[80px]' src={`${process.env.REACT_APP_BACKEND_URL}/images/${file?.url}`}  />
               <div className='flex flex-col justify-between'>
                 <div>
-                  <div className='font-semibold text-[#171717] text-[13px] md:text-[16px] leading-7'>{file?.name}</div>
-                  <div className='text-[#525252] text-[12px]'>{displayFileSize(file)}</div>
+                  <div className='font-semibold text-[#171717] text-[13px] md:text-[16px] leading-7'>{file?.url}</div>
+                  <div className='text-[#525252] text-[12px]'>{displayUploadedFileSize(file)}</div>
                 </div>
                 <div className='flex gap-2 xl:gap-6 justify-start items-center'>
                   <button className='text-[10px] md:text-[14px] text-[#525252] flex gap-1 md:gap-4 lg:gap-1 xl:gap-6 leading-5 justify-center items-center'>
                     <img alt="crop-area" className='w-[8px] h-[8px] md:w-[13px] md:h-[13px]' src='./assets/img/crop.png' />
                     Crop Image
                   </button>
-                  <button onClick={() => removeFile(index)} className='text-[10px] md:text-[14px] text-[#525252] flex gap-1 md:gap-4 lg:gap-1 xl:gap-6 justify-center items-center'>
+                  <button onClick={() => removeApiCall(file?._id)} className='text-[10px] md:text-[14px] text-[#525252] flex gap-1 md:gap-4 lg:gap-1 xl:gap-6 justify-center items-center'>
                     <img alt='delete' className='w-[8px] h-[8px] md:w-[13px] md:h-[13px]' src='./assets/img/delete.png' />
                     Delete
                   </button>
