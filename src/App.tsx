@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import './App.css';
 import Modal from './components/Modal';
 import UploadModal from './components/uploadModal';
@@ -15,18 +15,22 @@ type UploadProgress = {
 };
 
 type FetchImages = {
-  _id : string,
-  url : string,
-  dbState : boolean,
-  size : string
+  _id: string,
+  url: string,
+  dbState: boolean,
+  size: string
 }
 
 function App() {
   const [files, setFiles] = useState<File[]>([]);
+  const [selectedAvatar, setSelectedAvatar] = useState<string>("")
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [fetchFiles, setFetchFiles] = useState<FetchImages[]>([]);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
+  const [croppedImageUrl, setCroppedImageUrl] = useState<string | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
   const [isUploadModalVisible, setUploadModalVisible] = useState(false);
+  const [blobState, setBlobState] = useState<Blob>();
   const [crop, setCrop] = useState<Crop>({
     unit: '%',
     x: 25,
@@ -46,16 +50,23 @@ function App() {
 
   const FetchImages = async () => {
     try {
-      const images =  await  axios.get(`${process.env.REACT_APP_BACKEND_URL}/get-image`);
+      const images = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/get-image`);
       setFetchFiles(images.data?.images);
       setFiles([])
     } catch (error) {
-      
+
     }
   }
   useEffect(() => {
+    if (fetchFiles.length > 0) {
+      let imageURL = fetchFiles.filter((item) => item.dbState === true).map(item => item.url)
+      console.log("imageURL", imageURL);
+      setProfileImage(imageURL?.length > 0 ? imageURL[0] : null)
+    }
+  }, [fetchFiles])
+  useEffect(() => {
     FetchImages()
-  },[])
+  }, [])
 
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
@@ -137,7 +148,7 @@ function App() {
 
     });
     await Promise.all(promises).then((res) => {
-      
+
     });
   }
   const handleDragOver = (e: React.DragEvent) => {
@@ -164,10 +175,10 @@ function App() {
     }
   }
   const displayImage = (file: File) => {
-    let fileUrl ;
+    let fileUrl;
     if (file.type === 'image/jpeg' || file.type === 'image/png') {
       fileUrl = URL.createObjectURL(file)
-    }else{
+    } else {
       fileUrl = "./assets/img/damage.png"
     }
     return fileUrl
@@ -175,15 +186,29 @@ function App() {
   const removeFile = (index: number) => {
     setFiles((preFile) => preFile.filter((_, i) => i !== index))
   }
-  const removeApiCall = async (id : string) => {
+  const removeApiCall = async (id: string) => {
     try {
       axios.delete(`${process.env.REACT_APP_BACKEND_URL}/remove/${id}`).then((res) => {
         FetchImages()
       });
     } catch (error) {
-      
+
     }
   }
+
+  const updateAvatar = async () => {
+    try {
+      axios.put(`${process.env.REACT_APP_BACKEND_URL}/update-avatar`, {
+        imageid: selectedAvatar
+      }).then((res) => {
+        FetchImages()
+        closeUploadModal()
+      });
+    } catch (error) {
+
+    }
+  }
+
   const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     setFiles(files);
@@ -203,13 +228,67 @@ function App() {
     });
     await Promise.all(promises)
   };
+  const onCropComplete = (crop: Crop) => {
+    makeClientCrop(crop);
+  };
+
+  const makeClientCrop = async (crop: Crop) => {
+    if (imgRef.current && crop.width && crop.height) {
+      const croppedBlobFile: Blob = await getCroppedImg(imgRef, crop );
+      setBlobState(croppedBlobFile)
+    }
+  };
+  const uploadCroppedImage = () => {
+    const formData = new FormData();
+    if(blobState instanceof Blob)
+    formData.append('file', blobState, 'cropped-image.jpg'); 
+    axios.post(`${process.env.REACT_APP_BACKEND_URL}/upload-crop`, formData).then((res) => {});
+  }
+  const getCroppedImg = (imgRef: any, crop: Crop): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      
+        const canvas = document.createElement('canvas');
+        const scaleX = imgRef.naturalWidth / imgRef.width;
+        const scaleY = imgRef.naturalHeight / imgRef.height;
+        canvas.width = crop.width!;
+        canvas.height = crop.height!;
+        const ctx = canvas.getContext('2d')!;
+        if(!ctx){
+          return true;
+        }
+        ctx.drawImage(
+          imgRef,
+          crop.x! * scaleX,
+          crop.y! * scaleY,
+          crop.width! * scaleX,
+          crop.height! * scaleY,
+          0,
+          0,
+          crop.width!,
+          crop.height!
+        );
+
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            reject(new Error('Failed to create blob'));
+            return;
+          }
+          const croppedImageUrl = blob;
+          resolve(croppedImageUrl);
+        }, 'image/jpeg');
+      
+      
+    });
+  };
+
   return (
     <div className="bg-custom-gradient flex justify-center  items-center w-full h-screen">
       <div className='bg-white relative rounded-lg border overflow-hidden border-1 w-[90%] md:w-[70%] h-[420px]  mx-[10px]  md:mx-[20px] lg:mx-[20%]'>
         <div className=' bg-custom-image h-[176px] w-full bg-cover bg-right-center'>
         </div>
         <div onClick={openModal} className='cursor-pointer absolute borde top-[130px] md:top-[100px] left-[10px] md:left-[20px] w-[96px] h-[96px] md:w-[160px] md:h-[160px]'>
-          <img alt='profile' className='bg-slate-400 border border-[6px] border-white rounded-full' src='./assets/img/Vector.png' />
+          {profileImage ? <img alt='profile' className='bg-slate-400 border border-[6px] border-white rounded-full w-[96px] h-[96px] md:w-[160px] md:h-[160px]' src={`${process.env.REACT_APP_BACKEND_URL}/images/${profileImage}`} /> : <img alt='profile' className='bg-slate-400 border border-[6px] border-white rounded-full' src='./assets/img/Vector.png' />}
+          {croppedImageUrl && <img src={croppedImageUrl} />}
         </div>
         <div className=''>
           <div className='flex justify-end items-center'>
@@ -232,15 +311,15 @@ function App() {
           </div>
         </div>
       </div>
-      <Modal isVisible={isModalVisible} onClose={closeModal}>
-        <ReactCrop circularCrop crop={crop} onChange={c => setCrop(c)}>
-          <img alt='crop' ref={imgRef} className=' py-[10px] bg-black' src='./assets/img/Vector.png' />
+      {profileImage && <Modal isVisible={isModalVisible} onClose={closeModal}>
+        <ReactCrop  className='w-full h-full' circularCrop crop={crop} onChange={c => setCrop(c)} onComplete={onCropComplete}>
+          <img  crossOrigin='anonymous' alt='crop' ref={imgRef} className=' py-[10px] bg-black w-full h-full' src={`${process.env.REACT_APP_BACKEND_URL}/images/${profileImage}`} />
         </ReactCrop>
         <div className='flex mt-3 gap-5 items-center justify-between'>
           <button className='shadow w-full py-[10px] text-[#171717] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded' onClick={closeModal}>Cancel</button>
-          <button className='shadow w-full py-[10px] text-white bg-[#4338CA] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded'>Confirm</button>
+          <button onClick={uploadCroppedImage} className='shadow w-full py-[10px] text-white bg-[#4338CA] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded'>Confirm</button>
         </div>
-      </Modal>
+      </Modal>}
       <UploadModal isVisible={isUploadModalVisible} onClose={closeUploadModal}>
         <div onDrop={handleDrop} onDragOver={handleDragOver} className='relative my-3' id="drop-area">
           <input className='hidden'
@@ -266,8 +345,8 @@ function App() {
           {files.length > 0 && files.map((file, index) => <div key={index} className='my-2 flex justify-between items-start'>
             <div className='flex w-full gap-5'>
               {uploadProgress[file.name]?.status ? <img alt='user-image' className='w-[80px] h-[80px] border border-1 boreder-[#E5E5E5] rounded-md bg-[#FAFAFA]' src={displayImage(file)} /> : <div className='flex items-center justify-center w-[80px] h-[80px] border border-1 boreder-[#E5E5E5] rounded-md bg-[#FAFAFA]'>
-              <img alt='user-image' className='w-[24px] h-[26px] ' src="./assets/img/damage.png" />  
-              </div> }
+                <img alt='user-image' className='w-[24px] h-[26px] ' src="./assets/img/damage.png" />
+              </div>}
               <div className='flex w-full flex-col justify-around'>
                 <div className='flex justify-between w-full'>
                   <div className=''>
@@ -286,8 +365,8 @@ function App() {
             </div>
           </div>)}
           {fetchFiles.length > 0 && fetchFiles.map((file, index) => <div key={index} className='my-2 flex justify-between items-start'>
-            <div className='flex gap-5'>
-              <img alt='user-image' className='w-[80px] h-[80px]' src={`${process.env.REACT_APP_BACKEND_URL}/images/${file?.url}`}  />
+            <div className='flex gap-5 my-1'>
+              <img alt='user-image' className='w-[80px] ' src={`${process.env.REACT_APP_BACKEND_URL}/images/${file?.url}`} />
               <div className='flex flex-col justify-between'>
                 <div>
                   <div className='font-semibold text-[#171717] text-[13px] md:text-[16px] leading-7'>{file?.url}</div>
@@ -306,13 +385,13 @@ function App() {
               </div>
             </div>
             <div>
-              <input name='profile' className='hover:border-[#4F46E5] accent-[#4338CA] w-[16px] h-[16px]' type='radio' />
+              <input onClick={() => setSelectedAvatar(file?._id)} name='profile' className='hover:border-[#4F46E5] accent-[#4338CA] w-[16px] h-[16px]' type='radio' />
             </div>
           </div>)}
         </div>
         <div className='flex mt-3 gap-5 items-center justify-between'>
-          <button className='shadow w-full py-[10px] text-[#171717] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded'>Cancel</button>
-          <button className='shadow w-full py-[10px] text-white bg-[#4338CA] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] focus:bg-[#3730A3] disabled:text-[#A3A3A3] disabled:bg-[#F5F5F5] hover:bg-[#3730A3] rounded'>Select image</button>
+          <button type='button' onClick={closeUploadModal} className='shadow w-full py-[10px] text-[#171717] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] rounded'>Cancel</button>
+          <button type='button' onClick={updateAvatar} className='shadow w-full py-[10px] text-white bg-[#4338CA] border border-[0.5px] border-[#E5E5E5] text-[14px] md:text-[16px] focus:bg-[#3730A3] disabled:text-[#A3A3A3] disabled:bg-[#F5F5F5] hover:bg-[#3730A3] rounded'>Select image</button>
         </div>
       </UploadModal>
     </div>
