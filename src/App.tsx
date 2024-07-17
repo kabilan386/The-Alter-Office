@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {  useEffect, useRef, useState } from 'react';
 import './App.css';
 import Modal from './components/Modal';
 import UploadModal from './components/uploadModal';
@@ -27,7 +27,6 @@ function App() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const [fetchFiles, setFetchFiles] = useState<FetchImages[]>([]);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
-  const [croppedImageUrl, setCroppedImageUrl] = useState<string | null>(null);
   const [isModalVisible, setModalVisible] = useState(false);
   const [isUploadModalVisible, setUploadModalVisible] = useState(false);
   const [blobState, setBlobState] = useState<Blob>();
@@ -294,7 +293,7 @@ function App() {
         </div>
         <div onClick={openModal} className='cursor-pointer absolute borde top-[130px] md:top-[100px] left-[10px] md:left-[20px] w-[96px] h-[96px] md:w-[160px] md:h-[160px]'>
           {profileImage ? <img alt='profile' className='bg-slate-400 border border-[6px] border-white rounded-full w-[96px] h-[96px] md:w-[160px] md:h-[160px]' src={`${process.env.REACT_APP_BACKEND_URL}/images/${profileImage}`} /> : <img alt='profile' className='bg-slate-400 border border-[6px] border-white rounded-full' src='./assets/img/Vector.png' />}
-          {croppedImageUrl && <img src={croppedImageUrl} />}
+          
         </div>
         <div className=''>
           <div className='flex justify-end items-center'>
