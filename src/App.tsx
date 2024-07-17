@@ -213,83 +213,20 @@ function App() {
     const files = Array.from(event.target.files ?? []);
     setFiles(files);
     const promises: Promise<any>[] = [];
-    const progress: UploadProgress = {};
     Array.from(files).forEach((file) => {
       const formData = new FormData();
       formData.append('file', file);
-      if (file.type === 'image/jpeg' || file.type === 'image/png') {
-        if (file.size < 5 * 1024 * 1024) {
-          const promise = axios.post(`${process.env.REACT_APP_BACKEND_URL}/upload`, formData, {
-            onUploadProgress: (event) => {
-              const total = event.total || event.loaded;
-              if (event.loaded === total) {
-                progress[file.name] = { status: true, load: Math.round((100 * event.loaded) / total), error: "" };
-              } else {
-                progress[file.name] = { status: true, load: Math.round((100 * event.loaded) / total), error: "" };
-              }
-              setUploadProgress({ ...progress });
-            },
-          }).catch(error => {
-
-            if (error.response) {
-              // The request was made and the server responded with a status code
-              if (error.response.status >= 400 && error.response.status < 500) {
-                progress[file.name] = {
-                  status: false,
-                  error: 'Client Error: ' + error.response.data.message,
-                  load: 0
-                };
-              } else if (error.response.status >= 500 && error.response.status < 600) {
-                progress[file.name] = {
-                  status: false,
-                  error: 'An unexpected error occurred during the upload. Please contact support if the issue persists.',
-                  load: 0
-                };
-              } else {
-                progress[file.name] = {
-                  status: false,
-                  error: 'Unexpected Error: ' + error.response.data.message,
-                  load: 0
-                };
-              }
-            } else if (error.request) {
-              console.log("error", error)
-              // The request was made but no response was received
-              progress[file.name] = {
-                status: false,
-                error: 'An error occurred during the upload. Please check your network connection and try again.',
-                load: 0
-              };
-            } else {
-              // Something happened in setting up the request that triggered an error
-              progress[file.name] = {
-                status: false,
-                error: 'Error: ' + error.message,
-                load: 0
-              };
-            }
-            setUploadProgress({ ...progress });
-          });
-
-          promises.push(promise);
-        } else {
-          progress[file.name] = { status: false, error: "This image is larger than 5MB. Please select a smaller image.", load: 0 };
-          setUploadProgress({ ...progress });
-        }
-      } else {
-        progress[file.name] = {
-          status: false,
-          error: "The file format of IMG_0080.pcx is not supported. Please upload an image in one of the following formats: JPG or PNG.",
-          load: 0
-        };
-      }
-      console.log("progress", progress)
-
-
+      console.log("log", formData);
+      const promise = axios.post('https://the-alter-office-backend.onrender.com/upload', formData, {
+        onUploadProgress: (event) => {
+          // const total = event.total || event.loaded;
+          // progress[file.name] = Math.round((100 * event.loaded) / total);
+          // setUploadProgress({ ...progress });
+        },
+      });
+      promises.push(promise);
     });
-    await Promise.all(promises).then((res) => {
-
-    });
+    await Promise.all(promises)
   };
   const onCropComplete = (crop: Crop) => {
     makeClientCrop(crop);
@@ -297,30 +234,33 @@ function App() {
 
   const makeClientCrop = async (crop: Crop) => {
     if (imgRef.current && crop.width && crop.height) {
-      const croppedBlobFile: Blob = await getCroppedImg(imgRef, crop );
+      const croppedBlobFile : Blob = await getCroppedImg(`${process.env.REACT_APP_BACKEND_URL}/images/${profileImage}`, crop );
       setBlobState(croppedBlobFile)
     }
   };
   const uploadCroppedImage = () => {
     const formData = new FormData();
-    if(blobState instanceof Blob)
+    if(blobState)
     formData.append('file', blobState, 'cropped-image.jpg'); 
-    axios.post(`${process.env.REACT_APP_BACKEND_URL}/upload-crop`, formData).then((res) => {});
+    axios.post(`${process.env.REACT_APP_BACKEND_URL}/upload-crop`, formData).then((res) => {
+      closeModal()
+    });
   }
-  const getCroppedImg = (imgRef: any, crop: Crop): Promise<Blob> => {
+  const getCroppedImg = (src: string, crop: Crop): Promise<Blob> => {
     return new Promise((resolve, reject) => {
-      
+      const image = new Image();
+      image.src = src;
+      image.crossOrigin = "anonymous"
+      image.onload = () => {
         const canvas = document.createElement('canvas');
-        const scaleX = imgRef.naturalWidth / imgRef.width;
-        const scaleY = imgRef.naturalHeight / imgRef.height;
+        const scaleX = image.naturalWidth / image.width;
+        const scaleY = image.naturalHeight / image.height;
         canvas.width = crop.width!;
         canvas.height = crop.height!;
         const ctx = canvas.getContext('2d')!;
-        if(!ctx){
-          return true;
-        }
+
         ctx.drawImage(
-          imgRef,
+          image,
           crop.x! * scaleX,
           crop.y! * scaleY,
           crop.width! * scaleX,
@@ -336,11 +276,14 @@ function App() {
             reject(new Error('Failed to create blob'));
             return;
           }
-          const croppedImageUrl = blob;
-          resolve(croppedImageUrl);
+          // const croppedImageUrl = URL.createObjectURL(blob);
+          resolve(blob);
         }, 'image/jpeg');
-      
-      
+      };
+      image.onerror = (error) => {
+        reject(error);
+      };
+  
     });
   };
 
